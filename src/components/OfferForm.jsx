@@ -9,15 +9,17 @@ import {
 import { addOffer } from '../lib/db'
 import { LOJAS } from '../lib/constants'
 import MessagePreview from './MessagePreview'
+import CouponManager from './CouponManager'
 
 // =============================================================================
 // Cadastro de oferta (semi-automático).
 //
 // Fluxo:
-//  1. Escolhe a loja. Para Mercado Livre, cola a URL e busca os dados na API.
-//     Em qualquer falha (CORS/401/rede), cai no preenchimento manual.
+//  1. Escolhe a loja. Para Mercado Livre, cola a URL e busca os dados via
+//     backend (/api/ml-produto). Se falhar, cai no preenchimento manual.
 //  2. Preenche/ajusta nome, preços, imagem e link de afiliado (colado por você).
 //  3. A ferramenta sugere cupons cadastrados elegíveis para o produto.
+//     O gerenciador de cupons fica logo abaixo, na mesma tela.
 //  4. Preview ao vivo + copiar + salvar no histórico (IndexedDB).
 // =============================================================================
 
@@ -33,7 +35,7 @@ const FORM_VAZIO = {
   incluirDesconto: false,
 }
 
-export default function OfferForm({ coupons, onSaved }) {
+export default function OfferForm({ coupons, onSaved, onCouponsChange }) {
   const [form, setForm] = useState(FORM_VAZIO)
   const [cupomSelecionadoId, setCupomSelecionadoId] = useState('') // '' = sem cupom
   const [carregando, setCarregando] = useState(false)
@@ -67,11 +69,18 @@ export default function OfferForm({ coupons, onSaved }) {
         urlImagem: dados.urlImagem || f.urlImagem,
       }))
     } catch (e) {
-      // Fallback claro: a API não respondeu no navegador (comum por CORS/401).
-      const motivo =
-        e.message === 'URL_INVALIDA'
-          ? 'Não encontrei um ID MLB nessa URL. Confira o link.'
-          : 'A API do Mercado Livre não respondeu no navegador (bloqueio de CORS ou autenticação). Preencha os campos manualmente abaixo.'
+      // Fallback claro caso o backend não consiga os dados.
+      let motivo
+      if (e.message === 'URL_INVALIDA') {
+        motivo =
+          'Não encontrei um ID MLB nessa URL. Use o link completo do produto (não o link curto meli.la).'
+      } else if (e.semCredenciais) {
+        motivo =
+          'O backend está sem as credenciais do Mercado Livre (ML_CLIENT_ID/ML_CLIENT_SECRET). Configure-as na Vercel (veja o README) para ativar a busca automática. Por enquanto, preencha manualmente.'
+      } else {
+        motivo =
+          'Não consegui buscar os dados deste produto no Mercado Livre. Preencha os campos manualmente abaixo.'
+      }
       setAviso(motivo)
     } finally {
       setCarregando(false)
@@ -178,7 +187,8 @@ export default function OfferForm({ coupons, onSaved }) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-2">
       {/* ===================== COLUNA ESQUERDA: FORMULÁRIO ===================== */}
       <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-800">Nova oferta</h2>
@@ -361,7 +371,7 @@ export default function OfferForm({ coupons, onSaved }) {
           {cuponsElegiveis.length === 0 ? (
             <p className="text-sm text-slate-500">
               Nenhum cupom elegível. Verifique a loja, o preço e (se aplicável) a
-              categoria — ou cadastre cupons na aba "Cupons".
+              categoria — ou cadastre cupons na seção abaixo.
             </p>
           ) : (
             <div className="space-y-2">
@@ -414,6 +424,16 @@ export default function OfferForm({ coupons, onSaved }) {
         {/* Preview da mensagem */}
         <MessagePreview mensagem={mensagem} />
       </div>
+      </div>
+
+      {/* ===================== GERENCIADOR DE CUPONS ===================== */}
+      {/* Antes ficava numa aba separada; agora vive na mesma tela da oferta. */}
+      <section className="border-t border-slate-200 pt-6">
+        <h2 className="mb-4 text-lg font-semibold text-slate-800">
+          🎟️ Gerenciar cupons
+        </h2>
+        <CouponManager coupons={coupons} onChange={onCouponsChange} />
+      </section>
     </div>
   )
 }

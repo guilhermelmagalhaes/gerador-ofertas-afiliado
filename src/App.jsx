@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getCoupons, getOffers } from './lib/db'
 import OfferForm from './components/OfferForm'
-import CouponManager from './components/CouponManager'
 import History from './components/History'
 
 // =============================================================================
@@ -12,7 +11,6 @@ import History from './components/History'
 
 const ABAS = [
   { id: 'oferta', rotulo: '➕ Nova oferta' },
-  { id: 'cupons', rotulo: '🎟️ Cupons' },
   { id: 'historico', rotulo: '📜 Histórico' },
 ]
 
@@ -73,10 +71,11 @@ export default function App() {
       {/* Conteúdo da aba ativa */}
       <main className="mx-auto max-w-6xl px-4 py-6">
         {aba === 'oferta' && (
-          <OfferForm coupons={coupons} onSaved={recarregarOfertas} />
-        )}
-        {aba === 'cupons' && (
-          <CouponManager coupons={coupons} onChange={recarregarCupons} />
+          <OfferForm
+            coupons={coupons}
+            onSaved={recarregarOfertas}
+            onCouponsChange={recarregarCupons}
+          />
         )}
         {aba === 'historico' && (
           <History offers={offers} onChange={recarregarOfertas} />

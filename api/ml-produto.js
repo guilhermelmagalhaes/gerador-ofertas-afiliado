@@ -1,0 +1,165 @@
+// =============================================================================
+// BACKEND (Vercel Serverless Function) — proxy autenticado para a API do ML.
+//
+// Por que existe:
+//   1) O navegador não chama a API do ML diretamente (bloqueio de CORS).
+//   2) Desde 2024 o ML também EXIGE autenticação na maioria dos endpoints
+//      (/items, /products) — retorna 401/403 mesmo server-side sem token.
+//   Este backend roda no servidor (sem CORS) E autentica, então a busca
+//   automática volta a funcionar.
+//
+// Fluxo:
+//   Frontend  ->  GET /api/ml-produto?url=<url-do-produto>
+//   Backend   ->  obtém token de app -> consulta o ML -> normaliza -> responde
+//                 { nome, precoPor, precoDe, urlImagem }
+//
+// Credenciais (configurar como Environment Variables na Vercel):
+//   - ML_CLIENT_ID e ML_CLIENT_SECRET  -> recomendado. O backend gera o token
+//     automaticamente (OAuth client_credentials) e o renova sozinho.
+//   - ML_ACCESS_TOKEN                  -> alternativa rápida p/ teste (expira
+//     em ~6h; tem prioridade se presente).
+//   Sem credenciais, a busca falha graciosamente e a UI usa preenchimento
+//   manual. Os segredos ficam SÓ no servidor, nunca chegam ao navegador.
+//
+// Continua SEM banco em nuvem: a persistência segue 100% no IndexedDB.
+// =============================================================================
+
+// Cache do token de app em memória (vive enquanto a função estiver "quente").
+let tokenCache = { token: null, exp: 0 }
+
+// Obtém um access token de aplicação. Ordem: token estático > cache > OAuth.
+async function obterToken() {
+  // 1) Token estático (teste rápido) tem prioridade.
+  if (process.env.ML_ACCESS_TOKEN) return process.env.ML_ACCESS_TOKEN
+
+  // 2) Cache ainda válido?
+  if (tokenCache.token && Date.now() < tokenCache.exp) return tokenCache.token
+
+  // 3) Gera via OAuth client_credentials (precisa de client id + secret).
+  const clientId = process.env.ML_CLIENT_ID
+  const clientSecret = process.env.ML_CLIENT_SECRET
+  if (!clientId || !clientSecret) return null // sem credenciais configuradas
+
+  const body = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: clientId,
+    client_secret: clientSecret,
+  })
+  const resp = await fetch('https://api.mercadolibre.com/oauth/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json',
+    },
+    body,
+  })
+  if (!resp.ok) return null
+  const data = await resp.json()
+  // Renova 60s antes de expirar para evitar usar token no limite.
+  tokenCache = {
+    token: data.access_token,
+    exp: Date.now() + ((data.expires_in || 21600) - 60) * 1000,
+  }
+  return tokenCache.token
+}
+
+// Extrai o ID do Mercado Livre (formato MLB...) de uma URL.
+function extrairIdMl(url) {
+  if (!url || typeof url !== 'string') return null
+  const match = url.match(/MLB-?(\d{5,})/i)
+  if (!match) return null
+  const id = 'MLB' + match[1]
+  const ehCatalogo = /\/p\/MLB/i.test(url) // URLs de catálogo têm "/p/"
+  return { id, ehCatalogo }
+}
+
+// Normaliza a resposta do endpoint /items/{id}.
+function normalizarItem(data) {
+  const imagem =
+    data?.pictures?.[0]?.secure_url ||
+    data?.pictures?.[0]?.url ||
+    data?.thumbnail ||
+    ''
+  return {
+    nome: data?.title ?? '',
+    precoPor: data?.price ?? null,
+    precoDe: data?.original_price ?? null,
+    urlImagem: imagem,
+  }
+}
+
+// Normaliza a resposta do endpoint /products/{id} (catálogo).
+function normalizarProduto(data) {
+  const imagem = data?.pictures?.[0]?.secure_url || data?.pictures?.[0]?.url || ''
+  const box = data?.buy_box_winner ?? {}
+  return {
+    nome: data?.name ?? '',
+    precoPor: box.price ?? null,
+    precoDe: box.original_price ?? null,
+    urlImagem: imagem,
+  }
+}
+
+// Faz o fetch (com token opcional) e devolve o JSON, ou lança erro.
+async function buscarJson(url, token) {
+  const headers = { Accept: 'application/json' }
+  if (token) headers.Authorization = `Bearer ${token}`
+  const resp = await fetch(url, { headers })
+  if (!resp.ok) {
+    throw new Error(`HTTP ${resp.status}`)
+  }
+  return resp.json()
+}
+
+export default async function handler(req, res) {
+  // Libera o acesso do frontend (útil em dev e previews de domínios distintos).
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end()
+  }
+
+  const url = (req.query?.url || '').toString()
+  const extraido = extrairIdMl(url)
+  if (!extraido) {
+    return res.status(400).json({ erro: 'URL_INVALIDA' })
+  }
+
+  const { id, ehCatalogo } = extraido
+  const token = await obterToken()
+  // Sinaliza ao frontend que faltam credenciais (mensagem mais útil na UI).
+  const semCredenciais = !token
+
+  const urlItem = `https://api.mercadolibre.com/items/${id}`
+  const urlProduto = `https://api.mercadolibre.com/products/${id}`
+
+  // Tenta primeiro o endpoint mais provável conforme o tipo de URL.
+  const tentativas = ehCatalogo
+    ? [
+        { url: urlProduto, normaliza: normalizarProduto },
+        { url: urlItem, normaliza: normalizarItem },
+      ]
+    : [
+        { url: urlItem, normaliza: normalizarItem },
+        { url: urlProduto, normaliza: normalizarProduto },
+      ]
+
+  let ultimoErro
+  for (const tentativa of tentativas) {
+    try {
+      const data = await buscarJson(tentativa.url, token)
+      // Cache leve na borda da Vercel (5 min) para itens repetidos.
+      res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate')
+      return res.status(200).json(tentativa.normaliza(data))
+    } catch (erro) {
+      ultimoErro = erro
+    }
+  }
+
+  // Falhou: item exige auth (sem credenciais), item inexistente, etc.
+  return res.status(502).json({
+    erro: 'FALHA_API_ML',
+    semCredenciais,
+    detalhe: String(ultimoErro?.message || ultimoErro),
+  })
+}
