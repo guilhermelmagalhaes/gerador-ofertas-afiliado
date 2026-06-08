@@ -1,0 +1,22 @@
+# Dependências
+node_modules
+
+# Build
+dist
+dist-ssr
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / SO
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+
+# Variáveis de ambiente (não há backend nesta fase, mas evita commits acidentais)
+.env
+.env.local
+.env.*.local

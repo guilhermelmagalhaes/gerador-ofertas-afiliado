@@ -1,0 +1,31 @@
+/* Diretivas do Tailwind: injetam o CSS base, os componentes e as utilidades. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos globais simples. */
+body {
+  @apply bg-slate-100 text-slate-800 antialiased;
+}
+
+/* Classe utilitária reaproveitável para inputs do formulário,
+   evita repetir as mesmas classes Tailwind em todo campo. */
+@layer components {
+  .campo {
+    @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm
+           focus:border-marca-500 focus:outline-none focus:ring-1 focus:ring-marca-500;
+  }
+  .rotulo {
+    @apply mb-1 block text-sm font-medium text-slate-700;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2
+           text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primario {
+    @apply btn bg-marca-600 text-white hover:bg-marca-700;
+  }
+  .btn-secundario {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+}
