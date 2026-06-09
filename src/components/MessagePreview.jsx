@@ -1,14 +1,41 @@
 import { useState } from 'react'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, Image as ImageIcon } from 'lucide-react'
 
 // =============================================================================
-// Preview ao vivo da mensagem + botão "Copiar mensagem" com feedback visual.
+// Preview ao vivo da mensagem + botões "Copiar imagem" e "Copiar mensagem".
 //
-// Mostra o texto EXATAMENTE como será colado no WhatsApp (com *, ~, `).
+// Mostra o texto EXATAMENTE como será colado no WhatsApp (com *, ~, `) e a
+// imagem do produto acima, simulando o post (foto + legenda).
+//
+// OBS: o WhatsApp não aceita colar foto+texto juntos numa única ação — por
+// isso há dois botões. Fluxo no WhatsApp Web: "Copiar imagem" → Ctrl+V no chat
+// → "Copiar mensagem" → Ctrl+V na legenda → enviar.
 // =============================================================================
+
+// Converte um Blob de imagem (jpeg/webp) para PNG, formato mais compatível
+// com a área de transferência. Usa a imagem já baixada (blob local), então o
+// canvas não fica "tainted".
+function blobParaPng(blob) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      canvas.getContext('2d').drawImage(img, 0, 0)
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error('toBlob falhou'))),
+        'image/png',
+      )
+    }
+    img.onerror = reject
+    img.src = URL.createObjectURL(blob)
+  })
+}
 
 export default function MessagePreview({ mensagem, urlImagem }) {
   const [copiado, setCopiado] = useState(false)
+  const [imgCopiada, setImgCopiada] = useState(false)
 
   async function copiar() {
     try {
@@ -20,28 +47,83 @@ export default function MessagePreview({ mensagem, urlImagem }) {
     }
   }
 
+  async function copiarImagem() {
+    if (!urlImagem) return
+    try {
+      if (!navigator.clipboard || !window.ClipboardItem) {
+        throw new Error('Clipboard de imagem indisponível')
+      }
+      const resp = await fetch(urlImagem)
+      const blob = await resp.blob()
+      const png = blob.type === 'image/png' ? blob : await blobParaPng(blob)
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })])
+      setImgCopiada(true)
+      setTimeout(() => setImgCopiada(false), 2000)
+    } catch {
+      // Fallback: baixa a imagem para você anexar manualmente.
+      try {
+        const resp = await fetch(urlImagem)
+        const blob = await resp.blob()
+        const u = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = u
+        a.download = 'oferta.jpg'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(u)
+        alert('Não consegui copiar a imagem; baixei o arquivo para você anexar.')
+      } catch {
+        window.open(urlImagem, '_blank', 'noopener')
+      }
+    }
+  }
+
   return (
     <div className="card">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-slate-700">
           Preview da mensagem
         </h3>
-        <button
-          type="button"
-          onClick={copiar}
-          className={copiado ? 'btn bg-marca-100 text-marca-700' : 'btn-primario'}
-          disabled={!mensagem}
-        >
-          {copiado ? (
-            <>
-              <Check className="h-4 w-4" /> Copiado!
-            </>
-          ) : (
-            <>
-              <Copy className="h-4 w-4" /> Copiar mensagem
-            </>
+        <div className="flex flex-wrap gap-2">
+          {urlImagem && (
+            <button
+              type="button"
+              onClick={copiarImagem}
+              className={
+                imgCopiada
+                  ? 'btn bg-marca-100 text-marca-700'
+                  : 'btn-secundario'
+              }
+            >
+              {imgCopiada ? (
+                <>
+                  <Check className="h-4 w-4" /> Imagem copiada!
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="h-4 w-4" /> Copiar imagem
+                </>
+              )}
+            </button>
           )}
-        </button>
+          <button
+            type="button"
+            onClick={copiar}
+            className={copiado ? 'btn bg-marca-100 text-marca-700' : 'btn-primario'}
+            disabled={!mensagem}
+          >
+            {copiado ? (
+              <>
+                <Check className="h-4 w-4" /> Copiado!
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4" /> Copiar mensagem
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Balão estilo "mensagem de chat" para dar contexto visual. */}
@@ -62,12 +144,17 @@ export default function MessagePreview({ mensagem, urlImagem }) {
         </pre>
       </div>
 
-      <p className="mt-2 text-xs text-slate-400">
-        No WhatsApp, envie a <strong>imagem</strong> (botão “Baixar”) com este
-        texto como <strong>legenda</strong>. Os símbolos <code>*</code>{' '}
-        <code>~</code> <code>`</code> são a formatação (negrito, riscado e
-        monospace).
-      </p>
+      {/* Passo a passo de envio (o WhatsApp não cola foto + texto juntos). */}
+      <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+        <p className="mb-1 font-semibold text-slate-600">
+          Como enviar no WhatsApp Web:
+        </p>
+        <ol className="list-inside list-decimal space-y-0.5">
+          <li><strong>Copiar imagem</strong> → no grupo, cole com <kbd>Ctrl</kbd>+<kbd>V</kbd></li>
+          <li><strong>Copiar mensagem</strong> → cole na <strong>legenda</strong> da foto</li>
+          <li>Enviar 🚀</li>
+        </ol>
+      </div>
     </div>
   )
 }
