@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Lock,
   ShieldCheck,
@@ -10,17 +11,29 @@ import {
 } from 'lucide-react'
 import { clearOffers, clearCoupons } from '../lib/db'
 import { baixarArquivo } from '../lib/export'
+import { getDestinoTelegram, setDestinoTelegram } from '../lib/telegram'
 
 // =============================================================================
-// Tela de Configurações.
-//
-// Reúne: acesso (login — próxima etapa), gestão dos dados locais (exportar/
-// limpar) e informações do app. À medida que o projeto evoluir (login, envio
-// automático), novas seções entram aqui.
+// Tela de Configurações: acesso (login), envio pelo Telegram, dados locais e
+// informações do app.
 // =============================================================================
 
-export default function Settings({ offers, coupons, semSenha, onDadosAlterados }) {
-  // Exporta TUDO (ofertas + cupons) num único arquivo JSON de backup.
+export default function Settings({
+  offers,
+  coupons,
+  semSenha,
+  telegramConfigurado,
+  onDadosAlterados,
+}) {
+  const [destino, setDestino] = useState(getDestinoTelegram())
+  const [destinoSalvo, setDestinoSalvo] = useState(false)
+
+  function salvarDestino() {
+    setDestinoTelegram(destino)
+    setDestinoSalvo(true)
+    setTimeout(() => setDestinoSalvo(false), 2000)
+  }
+
   function exportarBackup() {
     const data = new Date().toISOString().slice(0, 10)
     const conteudo = JSON.stringify({ offers, coupons }, null, 2)
@@ -76,19 +89,66 @@ export default function Settings({ offers, coupons, semSenha, onDadosAlterados }
         )}
       </section>
 
-      {/* ---------- Envio automático (próxima etapa) ---------- */}
+      {/* ---------- Envio pelo Telegram ---------- */}
       <section className="card">
         <h3 className="mb-2 flex items-center gap-2 text-base font-semibold text-slate-800">
-          <Send className="h-5 w-5 text-marca-600" /> Envio automático
+          <Send className="h-5 w-5 text-marca-600" /> Envio pelo Telegram
         </h3>
-        <p className="text-sm text-slate-500">
-          Por enquanto, a mensagem é gerada para você copiar e colar. O envio
-          automático para grupos (Telegram/WhatsApp) é uma etapa futura.
-        </p>
-        <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
-          📨 Telegram roda na Vercel (grátis). WhatsApp para grupos exige um
-          servidor sempre ligado.
+
+        {telegramConfigurado ? (
+          <div className="mb-3 flex items-start gap-2 rounded-lg bg-marca-50 p-3 text-xs text-marca-700">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>Bot conectado. Defina o destino abaixo e use “Enviar no Telegram”.</span>
+          </div>
+        ) : (
+          <div className="mb-3 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">
+            <Unlock className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Bot não configurado. Defina <code>TELEGRAM_BOT_TOKEN</code> na
+              Vercel e faça Redeploy (passo a passo abaixo).
+            </span>
+          </div>
+        )}
+
+        <label className="rotulo">Canal/grupo de destino</label>
+        <div className="flex gap-2">
+          <input
+            className="campo"
+            placeholder="@meucanal ou -100123456789"
+            value={destino}
+            onChange={(e) => setDestino(e.target.value)}
+          />
+          <button type="button" className="btn-secundario" onClick={salvarDestino}>
+            Salvar
+          </button>
         </div>
+        {destinoSalvo && (
+          <p className="mt-1 text-xs font-medium text-marca-700">✓ Destino salvo</p>
+        )}
+
+        <details className="mt-3 text-xs text-slate-500">
+          <summary className="cursor-pointer font-medium text-slate-600">
+            Como configurar (passo a passo)
+          </summary>
+          <ol className="mt-2 list-inside list-decimal space-y-1">
+            <li>
+              No Telegram, fale com <strong>@BotFather</strong> → <code>/newbot</code>{' '}
+              → copie o <strong>token</strong>.
+            </li>
+            <li>
+              Na Vercel → Settings → Environment Variables → adicione{' '}
+              <code>TELEGRAM_BOT_TOKEN</code> → <strong>Redeploy</strong>.
+            </li>
+            <li>
+              Crie um canal/grupo e adicione seu bot como{' '}
+              <strong>administrador</strong>.
+            </li>
+            <li>
+              Destino: canal público use <code>@nomedocanal</code>; privado use o
+              ID numérico (ex.: <code>-100…</code>) e cole no campo acima.
+            </li>
+          </ol>
+        </details>
       </section>
 
       {/* ---------- Dados locais ---------- */}

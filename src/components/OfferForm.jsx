@@ -44,7 +44,12 @@ const FORM_VAZIO = {
   incluirDesconto: false,
 }
 
-export default function OfferForm({ coupons, onSaved, onCouponsChange }) {
+export default function OfferForm({
+  coupons,
+  onSaved,
+  onCouponsChange,
+  telegramConfigurado,
+}) {
   const [form, setForm] = useState(FORM_VAZIO)
   const [cupomSelecionadoId, setCupomSelecionadoId] = useState('') // '' = sem cupom
   const [carregando, setCarregando] = useState(false)
@@ -441,7 +446,11 @@ export default function OfferForm({ coupons, onSaved, onCouponsChange }) {
           </div>
 
           {/* Preview da mensagem */}
-          <MessagePreview mensagem={mensagem} urlImagem={form.urlImagem} />
+          <MessagePreview
+            mensagem={mensagem}
+            urlImagem={form.urlImagem}
+            telegramConfigurado={telegramConfigurado}
+          />
         </div>
       </div>
 

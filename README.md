@@ -23,7 +23,10 @@ busca automática de produtos. Seus dados (ofertas e cupons) continuam salvos
   **nunca sugere cupom vencido**.
 - **Geração da mensagem:** monta o texto no template dos grupos de promoção,
   com a formatação do WhatsApp (`*negrito*`, `~riscado~`, `` `monospace` ``),
-  **preview ao vivo** e botão **copiar**.
+  **preview ao vivo** (com a imagem do produto) e botões **copiar imagem** e
+  **copiar mensagem**.
+- **Envio automático para o Telegram:** com um clique, envia a foto + a
+  mensagem para o seu canal/grupo (API oficial, gratuita). Veja a seção abaixo.
 - **Histórico e exportação:** salva cada oferta gerada, com tabela ordenável,
   filtro por loja e exportação para **CSV** e **JSON**.
 - **Acesso restrito (login):** opcionalmente protege o app com uma senha de
@@ -34,8 +37,9 @@ busca automática de produtos. Seus dados (ofertas e cupons) continuam salvos
 - ❌ Não gera link de afiliado (você gera no painel oficial e cola aqui).
 - ❌ Não descobre cupons sozinha nem faz scraping de páginas de ofertas/cupons.
 - ❌ Não automatiza login nas lojas.
-- ❌ Não envia mensagens automaticamente — **isso é a Fase 2** (Baileys/Telegram).
-  O código já está modular e preparado para receber esse módulo.
+- ❌ Não envia para grupos de **WhatsApp** automaticamente — isso exigiria um
+  servidor 24/7 (Baileys) ou serviço pago, com risco de banimento do número.
+  O envio automático disponível é o do **Telegram** (oficial e seguro).
 
 ---
 
@@ -117,6 +121,33 @@ backend cria um **cookie de sessão assinado** (HttpOnly), válido por 30 dias.
 
 ---
 
+## 📤 Envio automático pelo Telegram
+
+Com o bot configurado, o botão **“Enviar no Telegram”** publica a foto + a
+mensagem direto no seu canal/grupo. Usa a **Bot API oficial** (gratuita, sem
+risco de banimento).
+
+**Passo a passo:**
+
+1. No Telegram, fale com **@BotFather** → `/newbot` → copie o **token**.
+2. Na Vercel → **Settings → Environment Variables** → adicione
+   `TELEGRAM_BOT_TOKEN` → **Redeploy**.
+3. Crie um canal/grupo e adicione o seu bot como **administrador**.
+4. No app, em **Configurações → Envio pelo Telegram**, informe o destino:
+   - Canal público: `@nomedocanal`
+   - Canal/grupo privado: o ID numérico (ex.: `-100123456789`)
+5. Gere a oferta e clique em **Enviar no Telegram**. ✅
+
+> O token fica só no servidor (env var). O destino fica salvo no seu navegador
+> e pode ser trocado a qualquer momento, sem redeploy.
+
+> **WhatsApp:** o envio automático para grupos de WhatsApp não está incluído —
+> exigiria um servidor sempre ligado (Baileys) ou um serviço pago, com risco de
+> banimento do número. Para o WhatsApp, use os botões **Copiar imagem** +
+> **Copiar mensagem**.
+
+---
+
 ## ☁️ Deploy na Vercel (passo a passo)
 
 1. **Suba o projeto para o GitHub** (já está em
@@ -130,6 +161,7 @@ backend cria um **cookie de sessão assinado** (HttpOnly), válido por 30 dias.
 5. Em **Environment Variables**, adicione (conforme o que quiser ativar):
    - `ML_CLIENT_ID` e `ML_CLIENT_SECRET` → busca automática do Mercado Livre.
    - `APP_PASSWORD` → exige senha para acessar o app.
+   - `TELEGRAM_BOT_TOKEN` → habilita o envio pelo Telegram.
 6. Clique em **Deploy**. Em ~1 minuto sua URL pública estará no ar.
 
 > A cada `git push` na branch `master`, a Vercel **redeploya** automaticamente.
@@ -143,9 +175,10 @@ backend cria um **cookie de sessão assinado** (HttpOnly), válido por 30 dias.
 api/                         # BACKEND (Vercel Serverless Functions)
 ├── _auth.js                 # Helpers de login (HMAC, cookie de sessão)
 ├── login.js                 # POST: valida senha e cria sessão
-├── me.js                    # GET: informa se está autenticado
+├── me.js                    # GET: status (autenticado, telegram configurado)
 ├── logout.js                # POST: encerra a sessão
-└── ml-produto.js            # Proxy autenticado p/ a API do Mercado Livre
+├── ml-produto.js            # Proxy autenticado p/ a API do Mercado Livre
+└── telegram.js              # POST: envia a oferta (foto + texto) ao Telegram
 src/
 ├── App.jsx                  # Porta de login + layout com menu lateral
 ├── main.jsx                 # Ponto de entrada do React
@@ -153,6 +186,7 @@ src/
 ├── lib/
 │   ├── db.js                # Acesso ao IndexedDB (isolado)
 │   ├── auth.js              # Cliente de login (/api/login, /me, /logout)
+│   ├── telegram.js          # Cliente de envio (/api/telegram) + destino salvo
 │   ├── mlApi.js             # Cliente que chama o backend /api/ml-produto
 │   ├── messageBuilder.js    # buildMessage() — função PURA (reusada no envio)
 │   ├── couponMatcher.js     # Regras de elegibilidade de cupom

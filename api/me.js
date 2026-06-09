@@ -10,5 +10,7 @@ export default async function handler(req, res) {
   return res.status(200).json({
     autenticado: sessaoValida(req),
     semSenha: !senhaConfigurada(),
+    // Indica se o envio pelo Telegram está disponível (bot configurado).
+    telegram: !!process.env.TELEGRAM_BOT_TOKEN,
   })
 }

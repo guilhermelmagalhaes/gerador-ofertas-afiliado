@@ -139,6 +139,7 @@ export default function App() {
               coupons={coupons}
               onSaved={recarregarOfertas}
               onCouponsChange={recarregarCupons}
+              telegramConfigurado={auth.telegram}
             />
           )}
           {secao === 'historico' && (
@@ -149,6 +150,7 @@ export default function App() {
               offers={offers}
               coupons={coupons}
               semSenha={auth.semSenha}
+              telegramConfigurado={auth.telegram}
               onDadosAlterados={() => {
                 recarregarOfertas()
                 recarregarCupons()

@@ -73,6 +73,8 @@ export default defineConfig(({ mode }) => {
     'ML_ACCESS_TOKEN',
     'APP_PASSWORD',
     'SESSION_SECRET',
+    'TELEGRAM_BOT_TOKEN',
+    'TELEGRAM_CHAT_ID',
   ]) {
     if (env[chave]) process.env[chave] = env[chave]
   }

@@ -1,15 +1,13 @@
 import { useState } from 'react'
-import { Copy, Check, Image as ImageIcon } from 'lucide-react'
+import { Copy, Check, Image as ImageIcon, Send, Loader2 } from 'lucide-react'
+import { enviarTelegram, getDestinoTelegram } from '../lib/telegram'
 
 // =============================================================================
-// Preview ao vivo da mensagem + botões "Copiar imagem" e "Copiar mensagem".
+// Preview ao vivo da mensagem + ações: enviar no Telegram, copiar imagem,
+// copiar mensagem.
 //
 // Mostra o texto EXATAMENTE como será colado no WhatsApp (com *, ~, `) e a
 // imagem do produto acima, simulando o post (foto + legenda).
-//
-// OBS: o WhatsApp não aceita colar foto+texto juntos numa única ação — por
-// isso há dois botões. Fluxo no WhatsApp Web: "Copiar imagem" → Ctrl+V no chat
-// → "Copiar mensagem" → Ctrl+V na legenda → enviar.
 // =============================================================================
 
 // Converte um Blob de imagem (jpeg/webp) para PNG, formato mais compatível
@@ -33,9 +31,12 @@ function blobParaPng(blob) {
   })
 }
 
-export default function MessagePreview({ mensagem, urlImagem }) {
+export default function MessagePreview({ mensagem, urlImagem, telegramConfigurado }) {
   const [copiado, setCopiado] = useState(false)
   const [imgCopiada, setImgCopiada] = useState(false)
+  const [enviando, setEnviando] = useState(false)
+  const [enviado, setEnviado] = useState(false)
+  const [erroEnvio, setErroEnvio] = useState('')
 
   async function copiar() {
     try {
@@ -79,6 +80,24 @@ export default function MessagePreview({ mensagem, urlImagem }) {
     }
   }
 
+  async function enviar() {
+    setErroEnvio('')
+    if (!getDestinoTelegram()) {
+      setErroEnvio('Defina o canal/grupo em Configurações → Telegram.')
+      return
+    }
+    setEnviando(true)
+    try {
+      await enviarTelegram({ mensagem, urlImagem })
+      setEnviado(true)
+      setTimeout(() => setEnviado(false), 2500)
+    } catch (e) {
+      setErroEnvio(e.message || 'Falha ao enviar.')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
   return (
     <div className="card">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -91,9 +110,7 @@ export default function MessagePreview({ mensagem, urlImagem }) {
               type="button"
               onClick={copiarImagem}
               className={
-                imgCopiada
-                  ? 'btn bg-marca-100 text-marca-700'
-                  : 'btn-secundario'
+                imgCopiada ? 'btn bg-marca-100 text-marca-700' : 'btn-secundario'
               }
             >
               {imgCopiada ? (
@@ -110,7 +127,7 @@ export default function MessagePreview({ mensagem, urlImagem }) {
           <button
             type="button"
             onClick={copiar}
-            className={copiado ? 'btn bg-marca-100 text-marca-700' : 'btn-primario'}
+            className={copiado ? 'btn bg-marca-100 text-marca-700' : 'btn-secundario'}
             disabled={!mensagem}
           >
             {copiado ? (
@@ -123,13 +140,46 @@ export default function MessagePreview({ mensagem, urlImagem }) {
               </>
             )}
           </button>
+
+          {/* Envio automático para o Telegram (só aparece se o bot estiver
+              configurado no servidor). */}
+          {telegramConfigurado && (
+            <button
+              type="button"
+              onClick={enviar}
+              disabled={!mensagem || enviando}
+              className={
+                enviado
+                  ? 'btn bg-marca-100 text-marca-700'
+                  : 'btn bg-sky-500 text-white hover:bg-sky-600'
+              }
+            >
+              {enviando ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Enviando...
+                </>
+              ) : enviado ? (
+                <>
+                  <Check className="h-4 w-4" /> Enviado!
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" /> Enviar no Telegram
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
+      {erroEnvio && (
+        <p className="mb-3 rounded-lg bg-red-50 p-2.5 text-xs text-red-600">
+          {erroEnvio}
+        </p>
+      )}
+
       {/* Balão estilo "mensagem de chat" para dar contexto visual. */}
       <div className="overflow-hidden rounded-xl bg-marca-50">
-        {/* Imagem do produto (no WhatsApp ela vai como foto + a mensagem
-            abaixo como legenda). */}
         {urlImagem && (
           <img
             src={urlImagem}
@@ -144,15 +194,20 @@ export default function MessagePreview({ mensagem, urlImagem }) {
         </pre>
       </div>
 
-      {/* Passo a passo de envio (o WhatsApp não cola foto + texto juntos). */}
+      {/* Passo a passo de envio manual no WhatsApp. */}
       <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
         <p className="mb-1 font-semibold text-slate-600">
-          Como enviar no WhatsApp Web:
+          WhatsApp (manual):
         </p>
         <ol className="list-inside list-decimal space-y-0.5">
-          <li><strong>Copiar imagem</strong> → no grupo, cole com <kbd>Ctrl</kbd>+<kbd>V</kbd></li>
-          <li><strong>Copiar mensagem</strong> → cole na <strong>legenda</strong> da foto</li>
-          <li>Enviar 🚀</li>
+          <li>
+            <strong>Copiar imagem</strong> → no grupo, cole com{' '}
+            <kbd>Ctrl</kbd>+<kbd>V</kbd>
+          </li>
+          <li>
+            <strong>Copiar mensagem</strong> → cole na <strong>legenda</strong>{' '}
+            da foto
+          </li>
         </ol>
       </div>
     </div>
