@@ -84,6 +84,12 @@ export async function deleteOffer(id) {
   return db.delete('offers', id)
 }
 
+/** Apaga TODAS as ofertas (usado nas Configurações). */
+export async function clearOffers() {
+  const db = await abrirBanco()
+  return db.clear('offers')
+}
+
 // ----------------------------------------------------------------------------
 // CUPONS
 // ----------------------------------------------------------------------------
@@ -120,4 +126,10 @@ export async function getCoupons() {
 export async function deleteCoupon(id) {
   const db = await abrirBanco()
   return db.delete('coupons', id)
+}
+
+/** Apaga TODOS os cupons (usado nas Configurações). */
+export async function clearCoupons() {
+  const db = await abrirBanco()
+  return db.clear('coupons')
 }

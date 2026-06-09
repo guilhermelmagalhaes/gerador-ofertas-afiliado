@@ -1,23 +1,39 @@
 import { useEffect, useState } from 'react'
+import { Menu } from 'lucide-react'
 import { getCoupons, getOffers } from './lib/db'
+import Sidebar from './components/Sidebar'
 import OfferForm from './components/OfferForm'
 import History from './components/History'
+import Settings from './components/Settings'
 
 // =============================================================================
-// Componente raiz: navegação por abas e estado compartilhado (cupons/ofertas).
+// Componente raiz: layout com menu lateral + área de conteúdo.
 //
-// Tudo roda no navegador. Os dados ficam no IndexedDB do próprio dispositivo.
+// Navegação por "seções" (gerar / histórico / config). Tudo roda no navegador;
+// os dados ficam no IndexedDB do próprio dispositivo.
 // =============================================================================
 
-const ABAS = [
-  { id: 'oferta', rotulo: '➕ Nova oferta' },
-  { id: 'historico', rotulo: '📜 Histórico' },
-]
+// Cabeçalho (título + subtítulo) de cada seção.
+const CABECALHOS = {
+  gerar: {
+    titulo: 'Gerar mensagem',
+    sub: 'Monte a oferta, escolha o cupom e copie a mensagem pronta.',
+  },
+  historico: {
+    titulo: 'Histórico',
+    sub: 'Todas as mensagens já geradas, com filtro e exportação.',
+  },
+  config: {
+    titulo: 'Configurações',
+    sub: 'Dados locais, acesso e informações do app.',
+  },
+}
 
 export default function App() {
-  const [aba, setAba] = useState('oferta')
+  const [secao, setSecao] = useState('gerar')
   const [coupons, setCoupons] = useState([])
   const [offers, setOffers] = useState([])
+  const [menuAberto, setMenuAberto] = useState(false)
 
   // Carrega cupons e ofertas do IndexedDB.
   async function recarregarCupons() {
@@ -33,58 +49,71 @@ export default function App() {
     recarregarOfertas()
   }, [])
 
+  function navegar(novaSecao) {
+    setSecao(novaSecao)
+    setMenuAberto(false) // fecha o menu no mobile ao navegar
+  }
+
+  const cabecalho = CABECALHOS[secao]
+
   return (
     <div className="min-h-screen">
-      {/* Cabeçalho */}
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-4">
-          <h1 className="text-xl font-bold text-slate-800">
-            🏷️ Gerador de Ofertas de Afiliado
-          </h1>
-          <p className="text-sm text-slate-500">
-            Monte mensagens para WhatsApp, Telegram e Instagram — 100% no seu
-            navegador.
-          </p>
-        </div>
-      </header>
+      <Sidebar
+        secao={secao}
+        onNavegar={navegar}
+        aberto={menuAberto}
+        onFechar={() => setMenuAberto(false)}
+      />
 
-      {/* Navegação por abas */}
-      <nav className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl gap-1 px-4">
-          {ABAS.map((a) => (
+      {/* Área de conteúdo (deslocada para a direita da sidebar fixa em lg+). */}
+      <div className="lg:pl-64">
+        {/* Topbar */}
+        <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">
+          <div className="flex items-center gap-3 px-4 py-4 sm:px-6">
+            {/* Botão de menu (só no mobile). */}
             <button
-              key={a.id}
               type="button"
-              onClick={() => setAba(a.id)}
-              className={`border-b-2 px-4 py-3 text-sm font-medium transition ${
-                aba === a.id
-                  ? 'border-marca-600 text-marca-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
+              onClick={() => setMenuAberto(true)}
+              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+              aria-label="Abrir menu"
             >
-              {a.rotulo}
+              <Menu className="h-5 w-5" />
             </button>
-          ))}
-        </div>
-      </nav>
+            <div>
+              <h1 className="text-lg font-bold text-slate-800">
+                {cabecalho.titulo}
+              </h1>
+              <p className="hidden text-sm text-slate-500 sm:block">
+                {cabecalho.sub}
+              </p>
+            </div>
+          </div>
+        </header>
 
-      {/* Conteúdo da aba ativa */}
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        {aba === 'oferta' && (
-          <OfferForm
-            coupons={coupons}
-            onSaved={recarregarOfertas}
-            onCouponsChange={recarregarCupons}
-          />
-        )}
-        {aba === 'historico' && (
-          <History offers={offers} onChange={recarregarOfertas} />
-        )}
-      </main>
-
-      <footer className="mx-auto max-w-6xl px-4 py-8 text-center text-xs text-slate-400">
-        Fase 1 — sem backend, sem custo. Os dados ficam apenas neste navegador.
-      </footer>
+        {/* Conteúdo da seção ativa */}
+        <main className="px-4 py-6 sm:px-6">
+          {secao === 'gerar' && (
+            <OfferForm
+              coupons={coupons}
+              onSaved={recarregarOfertas}
+              onCouponsChange={recarregarCupons}
+            />
+          )}
+          {secao === 'historico' && (
+            <History offers={offers} onChange={recarregarOfertas} />
+          )}
+          {secao === 'config' && (
+            <Settings
+              offers={offers}
+              coupons={coupons}
+              onDadosAlterados={() => {
+                recarregarOfertas()
+                recarregarCupons()
+              }}
+            />
+          )}
+        </main>
+      </div>
     </div>
   )
 }

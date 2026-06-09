@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Copy, Check } from 'lucide-react'
 
 // =============================================================================
 // Preview ao vivo da mensagem + botão "Copiar mensagem" com feedback visual.
@@ -13,16 +14,14 @@ export default function MessagePreview({ mensagem }) {
     try {
       await navigator.clipboard.writeText(mensagem)
       setCopiado(true)
-      // Reseta o feedback depois de 2s.
       setTimeout(() => setCopiado(false), 2000)
     } catch {
-      // Fallback caso a Clipboard API não esteja disponível.
       alert('Não foi possível copiar automaticamente. Selecione e copie manualmente.')
     }
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="card">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-700">
           Preview da mensagem
@@ -30,17 +29,27 @@ export default function MessagePreview({ mensagem }) {
         <button
           type="button"
           onClick={copiar}
-          className={copiado ? 'btn bg-emerald-100 text-emerald-700' : 'btn-primario'}
+          className={copiado ? 'btn bg-marca-100 text-marca-700' : 'btn-primario'}
           disabled={!mensagem}
         >
-          {copiado ? '✓ Copiado!' : '📋 Copiar mensagem'}
+          {copiado ? (
+            <>
+              <Check className="h-4 w-4" /> Copiado!
+            </>
+          ) : (
+            <>
+              <Copy className="h-4 w-4" /> Copiar mensagem
+            </>
+          )}
         </button>
       </div>
 
-      {/* whitespace-pre-wrap preserva as quebras de linha do template. */}
-      <pre className="whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-4 font-mono text-sm text-slate-800">
-        {mensagem || 'Preencha os campos para ver o preview...'}
-      </pre>
+      {/* Balão estilo "mensagem de chat" para dar contexto visual. */}
+      <div className="rounded-xl bg-marca-50 p-4">
+        <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-slate-800">
+          {mensagem || 'Preencha os campos para ver o preview...'}
+        </pre>
+      </div>
 
       <p className="mt-2 text-xs text-slate-400">
         Os símbolos <code>*</code> <code>~</code> <code>`</code> são a formatação

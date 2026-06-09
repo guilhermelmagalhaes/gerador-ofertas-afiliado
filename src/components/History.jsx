@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Copy, Trash2, Download, FileJson, Inbox } from 'lucide-react'
 import { deleteOffer } from '../lib/db'
 import { exportarOfertasCsv, exportarOfertasJson } from '../lib/export'
 import { formatarPreco } from '../lib/messageBuilder'
@@ -9,7 +10,7 @@ import { LOJAS } from '../lib/constants'
 // exportação para CSV/JSON.
 // =============================================================================
 
-// Definição das colunas ordenáveis (chave do dado + rótulo exibido).
+// Colunas ordenáveis (chave do dado + rótulo exibido).
 const COLUNAS = [
   { chave: 'criadoEm', rotulo: 'Data' },
   { chave: 'loja', rotulo: 'Loja' },
@@ -31,7 +32,6 @@ export default function History({ offers, onChange }) {
     const ordenada = [...lista].sort((a, b) => {
       const va = a[ordenarPor]
       const vb = b[ordenarPor]
-      // Trata null/undefined sempre por último.
       if (va == null) return 1
       if (vb == null) return -1
       if (typeof va === 'number' && typeof vb === 'number') return va - vb
@@ -64,7 +64,7 @@ export default function History({ offers, onChange }) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="card">
       {/* Barra de ações: filtro + exportações */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -79,6 +79,10 @@ export default function History({ offers, onChange }) {
               <option key={l}>{l}</option>
             ))}
           </select>
+          <span className="text-sm text-slate-400">
+            {ofertasVisiveis.length}{' '}
+            {ofertasVisiveis.length === 1 ? 'oferta' : 'ofertas'}
+          </span>
         </div>
 
         <div className="flex gap-2">
@@ -88,7 +92,7 @@ export default function History({ offers, onChange }) {
             onClick={() => exportarOfertasCsv(ofertasVisiveis)}
             disabled={ofertasVisiveis.length === 0}
           >
-            ⬇️ CSV
+            <Download className="h-4 w-4" /> CSV
           </button>
           <button
             type="button"
@@ -96,15 +100,16 @@ export default function History({ offers, onChange }) {
             onClick={() => exportarOfertasJson(ofertasVisiveis)}
             disabled={ofertasVisiveis.length === 0}
           >
-            ⬇️ JSON
+            <FileJson className="h-4 w-4" /> JSON
           </button>
         </div>
       </div>
 
       {ofertasVisiveis.length === 0 ? (
-        <p className="text-sm text-slate-500">
-          Nenhuma oferta no histórico ainda.
-        </p>
+        <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-slate-400">
+          <Inbox className="h-10 w-10" />
+          <p className="text-sm">Nenhuma oferta no histórico ainda.</p>
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -127,37 +132,40 @@ export default function History({ offers, onChange }) {
               {ofertasVisiveis.map((o) => (
                 <tr
                   key={o.id}
-                  className="border-b border-slate-100 hover:bg-slate-50"
+                  className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
                 >
-                  <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                  <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
                     {new Date(o.criadoEm).toLocaleDateString('pt-BR')}
                   </td>
-                  <td className="px-3 py-2">{o.loja}</td>
-                  <td className="max-w-xs truncate px-3 py-2" title={o.nomeProduto}>
+                  <td className="px-3 py-2.5">{o.loja}</td>
+                  <td
+                    className="max-w-xs truncate px-3 py-2.5"
+                    title={o.nomeProduto}
+                  >
                     {o.nomeProduto}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2">
+                  <td className="whitespace-nowrap px-3 py-2.5 font-medium">
                     R${formatarPreco(o.precoPor)}
                   </td>
-                  <td className="px-3 py-2 font-mono text-xs">
+                  <td className="px-3 py-2.5 font-mono text-xs">
                     {o.cupomCodigo || '—'}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2">
+                  <td className="whitespace-nowrap px-3 py-2.5">
                     <button
                       type="button"
-                      className="mr-2 text-marca-600 hover:text-marca-700"
+                      className="mr-1 rounded-lg p-1.5 text-slate-400 hover:bg-marca-50 hover:text-marca-700"
                       onClick={() => copiar(o.mensagemGerada)}
                       title="Copiar mensagem"
                     >
-                      📋
+                      <Copy className="h-4 w-4" />
                     </button>
                     <button
                       type="button"
-                      className="text-red-500 hover:text-red-700"
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
                       onClick={() => remover(o.id)}
                       title="Remover"
                     >
-                      🗑️
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </td>
                 </tr>

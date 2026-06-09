@@ -3,29 +3,47 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Estilos globais simples. */
+/* Estilos globais. */
 body {
-  @apply bg-slate-100 text-slate-800 antialiased;
+  @apply bg-slate-50 font-sans text-slate-800 antialiased;
 }
 
-/* Classe utilitária reaproveitável para inputs do formulário,
-   evita repetir as mesmas classes Tailwind em todo campo. */
+/* Componentes reutilizáveis — evitam repetir as mesmas classes em todo lugar. */
 @layer components {
+  /* Campos de formulário */
   .campo {
-    @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm
-           focus:border-marca-500 focus:outline-none focus:ring-1 focus:ring-marca-500;
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm
+           text-slate-800 placeholder:text-slate-400
+           focus:border-marca-500 focus:outline-none focus:ring-2 focus:ring-marca-500/30;
   }
   .rotulo {
-    @apply mb-1 block text-sm font-medium text-slate-700;
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
   }
+
+  /* Botões */
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2
-           text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+           text-sm font-semibold transition
+           disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primario {
-    @apply btn bg-marca-600 text-white hover:bg-marca-700;
+    @apply btn bg-marca-600 text-white shadow-suave hover:bg-marca-700
+           active:bg-marca-800;
   }
   .btn-secundario {
     @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+  .btn-perigo {
+    @apply btn border border-red-200 bg-white text-red-600 hover:bg-red-50;
+  }
+
+  /* Cartões */
+  .card {
+    @apply rounded-2xl border border-slate-200/80 bg-white p-5 shadow-cartao;
+  }
+
+  /* Selos / etiquetas */
+  .selo {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
   }
 }

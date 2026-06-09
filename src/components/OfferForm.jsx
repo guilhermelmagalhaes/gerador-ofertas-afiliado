@@ -1,10 +1,19 @@
 import { useMemo, useState } from 'react'
+import {
+  Store,
+  Search,
+  Loader2,
+  TriangleAlert,
+  ImageDown,
+  Link2,
+  Save,
+  Ticket,
+} from 'lucide-react'
 import { buscarProdutoMl } from '../lib/mlApi'
 import { getEligibleCoupons, estaVencido } from '../lib/couponMatcher'
 import {
   buildMessage,
   calcularDescontoPercent,
-  formatarPreco,
 } from '../lib/messageBuilder'
 import { addOffer } from '../lib/db'
 import { LOJAS } from '../lib/constants'
@@ -137,7 +146,6 @@ export default function OfferForm({ coupons, onSaved, onCouponsChange }) {
   async function baixarImagem() {
     if (!form.urlImagem) return
     try {
-      // Tenta baixar via fetch (funciona quando o host permite CORS).
       const resp = await fetch(form.urlImagem)
       const blob = await resp.blob()
       const url = URL.createObjectURL(blob)
@@ -175,7 +183,6 @@ export default function OfferForm({ coupons, onSaved, onCouponsChange }) {
       criadoEm: Date.now(),
     })
 
-    // Reseta o formulário mantendo a loja escolhida.
     setForm({ ...FORM_VAZIO, loja: form.loja })
     setCupomSelecionadoId('')
     setSalvo(true)
@@ -189,248 +196,256 @@ export default function OfferForm({ coupons, onSaved, onCouponsChange }) {
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-2">
-      {/* ===================== COLUNA ESQUERDA: FORMULÁRIO ===================== */}
-      <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-800">Nova oferta</h2>
-
-        {/* Loja */}
-        <div>
-          <label className="rotulo">Loja</label>
-          <select
-            className="campo"
-            value={form.loja}
-            onChange={(e) => atualizar('loja', e.target.value)}
-          >
-            {LOJAS.map((l) => (
-              <option key={l}>{l}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* URL + busca (apenas Mercado Livre) */}
-        {ehMercadoLivre && (
+        {/* ===================== COLUNA ESQUERDA: FORMULÁRIO ===================== */}
+        <div className="card space-y-4">
+          {/* Loja */}
           <div>
-            <label className="rotulo">URL do produto (Mercado Livre)</label>
+            <label className="rotulo flex items-center gap-1.5">
+              <Store className="h-4 w-4 text-slate-400" /> Loja
+            </label>
+            <select
+              className="campo"
+              value={form.loja}
+              onChange={(e) => atualizar('loja', e.target.value)}
+            >
+              {LOJAS.map((l) => (
+                <option key={l}>{l}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* URL + busca (apenas Mercado Livre) */}
+          {ehMercadoLivre && (
+            <div>
+              <label className="rotulo">URL do produto (Mercado Livre)</label>
+              <div className="flex gap-2">
+                <input
+                  className="campo"
+                  placeholder="https://www.mercadolivre.com.br/.../p/MLB..."
+                  value={form.urlProduto}
+                  onChange={(e) => atualizar('urlProduto', e.target.value)}
+                  onBlur={() => form.urlProduto && buscarDados()}
+                />
+                <button
+                  type="button"
+                  className="btn-primario whitespace-nowrap"
+                  onClick={buscarDados}
+                  disabled={carregando}
+                >
+                  {carregando ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                  {carregando ? 'Buscando...' : 'Buscar'}
+                </button>
+              </div>
+              {aviso && (
+                <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-700">
+                  <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{aviso}</span>
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Nome do produto */}
+          <div>
+            <label className="rotulo">Nome do produto *</label>
+            <input
+              className="campo"
+              value={form.nomeProduto}
+              onChange={(e) => atualizar('nomeProduto', e.target.value)}
+            />
+          </div>
+
+          {/* Preços */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="rotulo">Preço "De" (opcional)</label>
+              <input
+                className="campo"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="ex.: 199.90"
+                value={form.precoDe}
+                onChange={(e) => atualizar('precoDe', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="rotulo">Preço "Por" *</label>
+              <input
+                className="campo"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="ex.: 122"
+                value={form.precoPor}
+                onChange={(e) => atualizar('precoPor', e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Desconto calculado + checkbox */}
+          {descontoPercent != null && (
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-marca-50 p-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-marca-600 focus:ring-marca-500"
+                checked={form.incluirDesconto}
+                onChange={(e) => atualizar('incluirDesconto', e.target.checked)}
+              />
+              Incluir desconto de{' '}
+              <span className="font-bold text-marca-700">-{descontoPercent}%</span>{' '}
+              na mensagem
+            </label>
+          )}
+
+          {/* Categoria para casar cupom */}
+          <div>
+            <label className="rotulo">
+              Categoria do produto{' '}
+              <span className="font-normal text-slate-400">
+                (ajuda a sugerir cupons)
+              </span>
+            </label>
+            <input
+              className="campo"
+              placeholder='Ex.: "Moda", "Casa e Decoração"'
+              value={form.categoriaProduto}
+              onChange={(e) => atualizar('categoriaProduto', e.target.value)}
+            />
+          </div>
+
+          {/* Imagem */}
+          <div>
+            <label className="rotulo">URL da imagem</label>
             <div className="flex gap-2">
               <input
                 className="campo"
-                placeholder="https://www.mercadolivre.com.br/.../p/MLB..."
-                value={form.urlProduto}
-                onChange={(e) => atualizar('urlProduto', e.target.value)}
-                onBlur={() => form.urlProduto && buscarDados()}
+                placeholder="https://..."
+                value={form.urlImagem}
+                onChange={(e) => atualizar('urlImagem', e.target.value)}
               />
               <button
                 type="button"
-                className="btn-primario whitespace-nowrap"
-                onClick={buscarDados}
-                disabled={carregando}
+                className="btn-secundario whitespace-nowrap"
+                onClick={baixarImagem}
+                disabled={!form.urlImagem}
               >
-                {carregando ? 'Buscando...' : 'Buscar'}
+                <ImageDown className="h-4 w-4" /> Baixar
               </button>
             </div>
-            {aviso && (
-              <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-700">
-                ⚠️ {aviso}
-              </p>
+            {form.urlImagem && (
+              <img
+                src={form.urlImagem}
+                alt="Preview"
+                className="mt-2 h-32 w-32 rounded-lg border border-slate-200 object-contain"
+                onError={(e) => (e.currentTarget.style.display = 'none')}
+                onLoad={(e) => (e.currentTarget.style.display = 'block')}
+              />
             )}
           </div>
-        )}
 
-        {/* Nome do produto */}
-        <div>
-          <label className="rotulo">Nome do produto *</label>
-          <input
-            className="campo"
-            value={form.nomeProduto}
-            onChange={(e) => atualizar('nomeProduto', e.target.value)}
-          />
-        </div>
-
-        {/* Preços */}
-        <div className="grid grid-cols-2 gap-3">
+          {/* Link de afiliado */}
           <div>
-            <label className="rotulo">Preço "De" (opcional)</label>
+            <label className="rotulo flex items-center gap-1.5">
+              <Link2 className="h-4 w-4 text-slate-400" /> Link de afiliado *
+            </label>
             <input
               className="campo"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="ex.: 199.90"
-              value={form.precoDe}
-              onChange={(e) => atualizar('precoDe', e.target.value)}
+              placeholder="meli.la/... (gerado por você no painel da loja)"
+              value={form.linkAfiliado}
+              onChange={(e) => atualizar('linkAfiliado', e.target.value)}
             />
           </div>
-          <div>
-            <label className="rotulo">Preço "Por" *</label>
-            <input
-              className="campo"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="ex.: 122"
-              value={form.precoPor}
-              onChange={(e) => atualizar('precoPor', e.target.value)}
-            />
-          </div>
-        </div>
 
-        {/* Desconto calculado + checkbox */}
-        {descontoPercent != null && (
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-marca-600"
-              checked={form.incluirDesconto}
-              onChange={(e) => atualizar('incluirDesconto', e.target.checked)}
-            />
-            Incluir desconto de{' '}
-            <span className="font-semibold text-marca-700">
-              -{descontoPercent}%
-            </span>{' '}
-            na mensagem
-          </label>
-        )}
-
-        {/* Categoria para casar cupom */}
-        <div>
-          <label className="rotulo">
-            Categoria do produto{' '}
-            <span className="font-normal text-slate-400">
-              (ajuda a sugerir cupons)
-            </span>
-          </label>
-          <input
-            className="campo"
-            placeholder='Ex.: "Moda", "Casa e Decoração"'
-            value={form.categoriaProduto}
-            onChange={(e) => atualizar('categoriaProduto', e.target.value)}
-          />
-        </div>
-
-        {/* Imagem */}
-        <div>
-          <label className="rotulo">URL da imagem</label>
-          <div className="flex gap-2">
-            <input
-              className="campo"
-              placeholder="https://..."
-              value={form.urlImagem}
-              onChange={(e) => atualizar('urlImagem', e.target.value)}
-            />
-            <button
-              type="button"
-              className="btn-secundario whitespace-nowrap"
-              onClick={baixarImagem}
-              disabled={!form.urlImagem}
-            >
-              Baixar
-            </button>
-          </div>
-          {form.urlImagem && (
-            <img
-              src={form.urlImagem}
-              alt="Preview"
-              className="mt-2 h-32 w-32 rounded-lg border border-slate-200 object-contain"
-              onError={(e) => (e.currentTarget.style.display = 'none')}
-              onLoad={(e) => (e.currentTarget.style.display = 'block')}
-            />
-          )}
-        </div>
-
-        {/* Link de afiliado */}
-        <div>
-          <label className="rotulo">Link de afiliado *</label>
-          <input
-            className="campo"
-            placeholder="meli.la/... (gerado por você no painel da loja)"
-            value={form.linkAfiliado}
-            onChange={(e) => atualizar('linkAfiliado', e.target.value)}
-          />
-        </div>
-
-        {erro && <p className="text-sm text-red-600">{erro}</p>}
-        {salvo && (
-          <p className="text-sm font-medium text-marca-700">
-            ✓ Oferta salva no histórico!
-          </p>
-        )}
-
-        <button type="button" className="btn-primario w-full" onClick={salvar}>
-          💾 Salvar oferta no histórico
-        </button>
-      </div>
-
-      {/* ===================== COLUNA DIREITA: CUPONS + PREVIEW ===================== */}
-      <div className="space-y-4">
-        {/* Sugestão de cupons */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold text-slate-700">
-            Cupons elegíveis para esta oferta
-          </h3>
-
-          {cuponsElegiveis.length === 0 ? (
-            <p className="text-sm text-slate-500">
-              Nenhum cupom elegível. Verifique a loja, o preço e (se aplicável) a
-              categoria — ou cadastre cupons na seção abaixo.
+          {erro && <p className="text-sm text-red-600">{erro}</p>}
+          {salvo && (
+            <p className="text-sm font-medium text-marca-700">
+              ✓ Oferta salva no histórico!
             </p>
-          ) : (
-            <div className="space-y-2">
-              {/* Opção: sem cupom */}
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="cupom"
-                  checked={cupomSelecionadoId === ''}
-                  onChange={() => setCupomSelecionadoId('')}
-                />
-                Sem cupom
-              </label>
+          )}
 
-              {cuponsElegiveis.map((c) => (
-                <label
-                  key={c.id}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 p-2 text-sm"
-                >
+          <button type="button" className="btn-primario w-full" onClick={salvar}>
+            <Save className="h-4 w-4" /> Salvar oferta no histórico
+          </button>
+        </div>
+
+        {/* ===================== COLUNA DIREITA: CUPONS + PREVIEW ===================== */}
+        <div className="space-y-4">
+          {/* Sugestão de cupons */}
+          <div className="card">
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <Ticket className="h-4 w-4 text-marca-600" /> Cupons elegíveis para
+              esta oferta
+            </h3>
+
+            {cuponsElegiveis.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                Nenhum cupom elegível. Verifique a loja, o preço e (se aplicável)
+                a categoria — ou cadastre cupons na seção abaixo.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {/* Opção: sem cupom */}
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 text-sm hover:bg-slate-50">
                   <input
                     type="radio"
                     name="cupom"
-                    checked={String(c.id) === cupomSelecionadoId}
-                    onChange={() => setCupomSelecionadoId(String(c.id))}
+                    className="text-marca-600 focus:ring-marca-500"
+                    checked={cupomSelecionadoId === ''}
+                    onChange={() => setCupomSelecionadoId('')}
                   />
-                  <span className="font-mono font-semibold">{c.codigo}</span>
-                  <span className="text-slate-500">
-                    {c.tipoDesconto === 'percentual'
-                      ? `${c.valorDesconto}%`
-                      : `R$${c.valorDesconto}`}
-                  </span>
-                  {c.venceHoje && (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
-                      vence hoje!
-                    </span>
-                  )}
+                  Sem cupom
                 </label>
-              ))}
-            </div>
-          )}
 
-          {cuponsVencidos.length > 0 && (
-            <p className="mt-3 text-xs text-red-500">
-              {cuponsVencidos.length} cupom(ns) desta loja estão vencidos e não
-              são sugeridos.
-            </p>
-          )}
+                {cuponsElegiveis.map((c) => (
+                  <label
+                    key={c.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 p-2.5 text-sm hover:border-marca-300"
+                  >
+                    <input
+                      type="radio"
+                      name="cupom"
+                      className="text-marca-600 focus:ring-marca-500"
+                      checked={String(c.id) === cupomSelecionadoId}
+                      onChange={() => setCupomSelecionadoId(String(c.id))}
+                    />
+                    <span className="font-mono font-semibold">{c.codigo}</span>
+                    <span className="text-slate-500">
+                      {c.tipoDesconto === 'percentual'
+                        ? `${c.valorDesconto}%`
+                        : `R$${c.valorDesconto}`}
+                    </span>
+                    {c.venceHoje && (
+                      <span className="selo bg-amber-100 text-amber-700">
+                        vence hoje!
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {cuponsVencidos.length > 0 && (
+              <p className="mt-3 text-xs text-red-500">
+                {cuponsVencidos.length} cupom(ns) desta loja estão vencidos e não
+                são sugeridos.
+              </p>
+            )}
+          </div>
+
+          {/* Preview da mensagem */}
+          <MessagePreview mensagem={mensagem} />
         </div>
-
-        {/* Preview da mensagem */}
-        <MessagePreview mensagem={mensagem} />
-      </div>
       </div>
 
       {/* ===================== GERENCIADOR DE CUPONS ===================== */}
-      {/* Antes ficava numa aba separada; agora vive na mesma tela da oferta. */}
       <section className="border-t border-slate-200 pt-6">
-        <h2 className="mb-4 text-lg font-semibold text-slate-800">
-          🎟️ Gerenciar cupons
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-800">
+          <Ticket className="h-5 w-5 text-marca-600" /> Gerenciar cupons
         </h2>
         <CouponManager coupons={coupons} onChange={onCouponsChange} />
       </section>
