@@ -113,6 +113,43 @@ async function buscarJson(url, token) {
   return resp.json()
 }
 
+// Para produtos de CATÁLOGO: o endpoint /products/{id} nem sempre traz o
+// buy_box_winner (e, portanto, o preço). Aqui buscamos o preço entre os
+// ANÚNCIOS vinculados ao produto de catálogo (/products/{id}/items).
+async function precoDosItens(id, token) {
+  try {
+    const data = await buscarJson(
+      `https://api.mercadolibre.com/products/${id}/items?limit=10`,
+      token,
+    )
+    const results = Array.isArray(data?.results) ? data.results : []
+    if (!results.length) return null
+
+    // 1) Se os anúncios já trazem preço, usa o menor (melhor oferta).
+    const comPreco = results.filter((r) => typeof r.price === 'number')
+    if (comPreco.length) {
+      const melhor = comPreco.reduce((a, b) => (b.price < a.price ? b : a))
+      return { precoPor: melhor.price, precoDe: melhor.original_price ?? null }
+    }
+
+    // 2) Senão, busca o primeiro anúncio completo em /items/{itemId}.
+    const itemId = results[0].item_id || results[0].id
+    if (itemId) {
+      const item = normalizarItem(
+        await buscarJson(`https://api.mercadolibre.com/items/${itemId}`, token),
+      )
+      return {
+        precoPor: item.precoPor,
+        precoDe: item.precoDe,
+        urlImagem: item.urlImagem,
+      }
+    }
+  } catch {
+    // Ignora — mantém o que já tínhamos (preenchimento manual do preço).
+  }
+  return null
+}
+
 export default async function handler(req, res) {
   // Libera o acesso do frontend (útil em dev e previews de domínios distintos).
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -156,9 +193,25 @@ export default async function handler(req, res) {
   for (const tentativa of tentativas) {
     try {
       const data = await buscarJson(tentativa.url, token)
+      let resultado = tentativa.normaliza(data)
+
+      // Se veio sem preço (comum em catálogo sem buy_box_winner), tenta
+      // descobrir o preço pelos anúncios vinculados ao produto.
+      if (resultado.precoPor == null) {
+        const extra = await precoDosItens(id, token)
+        if (extra) {
+          resultado = {
+            ...resultado,
+            precoPor: extra.precoPor ?? resultado.precoPor,
+            precoDe: extra.precoDe ?? resultado.precoDe,
+            urlImagem: resultado.urlImagem || extra.urlImagem || '',
+          }
+        }
+      }
+
       // Cache leve na borda da Vercel (5 min) para itens repetidos.
       res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate')
-      return res.status(200).json(tentativa.normaliza(data))
+      return res.status(200).json(resultado)
     } catch (erro) {
       ultimoErro = erro
     }
