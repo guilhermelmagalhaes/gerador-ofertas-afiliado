@@ -1,4 +1,4 @@
-import { Tag, PlusCircle, History, Settings, X } from 'lucide-react'
+import { Tag, PlusCircle, History, Settings, X, LogOut, Unlock } from 'lucide-react'
 
 // =============================================================================
 // Menu lateral de navegação.
@@ -14,7 +14,14 @@ const ITENS = [
   { id: 'config', rotulo: 'Configurações', icone: Settings },
 ]
 
-export default function Sidebar({ secao, onNavegar, aberto, onFechar }) {
+export default function Sidebar({
+  secao,
+  onNavegar,
+  aberto,
+  onFechar,
+  onSair,
+  semSenha,
+}) {
   return (
     <>
       {/* Fundo escurecido no mobile quando o menu está aberto. */}
@@ -77,9 +84,25 @@ export default function Sidebar({ secao, onNavegar, aberto, onFechar }) {
         </nav>
 
         {/* Rodapé */}
-        <div className="border-t border-slate-800 px-5 py-4 text-xs text-slate-500">
-          <p>Fase 1 · sem custo</p>
-          <p className="mt-0.5">Dados salvos só neste navegador</p>
+        <div className="border-t border-slate-800 px-3 py-4">
+          {semSenha ? (
+            // Modo aberto: nenhuma senha configurada (não há sessão para sair).
+            <div className="mb-2 flex items-start gap-2 rounded-lg bg-slate-800 px-3 py-2 text-xs text-amber-300">
+              <Unlock className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>Acesso aberto — defina APP_PASSWORD para exigir senha.</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onSair}
+              className="mb-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+            >
+              <LogOut className="h-5 w-5 shrink-0" /> Sair
+            </button>
+          )}
+          <p className="px-3 text-xs text-slate-500">
+            Dados salvos só neste navegador
+          </p>
         </div>
       </aside>
     </>

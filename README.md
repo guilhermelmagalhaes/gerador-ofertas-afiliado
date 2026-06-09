@@ -26,6 +26,8 @@ busca automática de produtos. Seus dados (ofertas e cupons) continuam salvos
   **preview ao vivo** e botão **copiar**.
 - **Histórico e exportação:** salva cada oferta gerada, com tabela ordenável,
   filtro por loja e exportação para **CSV** e **JSON**.
+- **Acesso restrito (login):** opcionalmente protege o app com uma senha de
+  administrador (só você acessa) — sem banco de dados. Veja a seção abaixo.
 
 ### O que a ferramenta NÃO faz (por decisão de escopo)
 
@@ -94,6 +96,27 @@ no servidor — nunca chegam ao navegador.
 
 ---
 
+## 🔐 Acesso restrito (login)
+
+O app pode ser protegido por uma **senha de administrador** — sem banco de
+dados. A senha fica numa variável de ambiente (no servidor); ao entrar, o
+backend cria um **cookie de sessão assinado** (HttpOnly), válido por 30 dias.
+
+- **Com `APP_PASSWORD` definida:** o app exige login e a busca do Mercado Livre
+  só funciona autenticado (protege suas credenciais do ML).
+- **Sem `APP_PASSWORD`:** o app fica em **modo aberto** (qualquer um com o link
+  acessa) — útil para testar localmente.
+
+**Como ativar:**
+
+1. Defina `APP_PASSWORD` (a senha que você quiser):
+   - **Local:** no arquivo `.env`.
+   - **Vercel:** em **Settings → Environment Variables** e faça um **Redeploy**.
+2. (Opcional) Defina `SESSION_SECRET` com uma string aleatória longa. Se vazia,
+   é derivada da própria senha.
+
+---
+
 ## ☁️ Deploy na Vercel (passo a passo)
 
 1. **Suba o projeto para o GitHub** (já está em
@@ -104,8 +127,9 @@ no servidor — nunca chegam ao navegador.
 4. A Vercel detecta o Vite e a pasta `/api` automaticamente:
    - **Framework Preset:** Vite · **Build Command:** `npm run build` ·
      **Output Directory:** `dist`
-5. (Opcional, p/ busca automática) Em **Environment Variables**, adicione
-   `ML_CLIENT_ID` e `ML_CLIENT_SECRET`.
+5. Em **Environment Variables**, adicione (conforme o que quiser ativar):
+   - `ML_CLIENT_ID` e `ML_CLIENT_SECRET` → busca automática do Mercado Livre.
+   - `APP_PASSWORD` → exige senha para acessar o app.
 6. Clique em **Deploy**. Em ~1 minuto sua URL pública estará no ar.
 
 > A cada `git push` na branch `master`, a Vercel **redeploya** automaticamente.
@@ -116,24 +140,32 @@ no servidor — nunca chegam ao navegador.
 ## 🗂️ Estrutura do projeto
 
 ```
-api/
-└── ml-produto.js            # BACKEND: proxy autenticado p/ a API do Mercado Livre
+api/                         # BACKEND (Vercel Serverless Functions)
+├── _auth.js                 # Helpers de login (HMAC, cookie de sessão)
+├── login.js                 # POST: valida senha e cria sessão
+├── me.js                    # GET: informa se está autenticado
+├── logout.js                # POST: encerra a sessão
+└── ml-produto.js            # Proxy autenticado p/ a API do Mercado Livre
 src/
-├── App.jsx                  # Navegação por abas (Nova oferta / Histórico)
+├── App.jsx                  # Porta de login + layout com menu lateral
 ├── main.jsx                 # Ponto de entrada do React
 ├── index.css                # Tailwind + classes utilitárias
 ├── lib/
 │   ├── db.js                # Acesso ao IndexedDB (isolado)
+│   ├── auth.js              # Cliente de login (/api/login, /me, /logout)
 │   ├── mlApi.js             # Cliente que chama o backend /api/ml-produto
-│   ├── messageBuilder.js    # buildMessage() — função PURA (reusada na Fase 2)
+│   ├── messageBuilder.js    # buildMessage() — função PURA (reusada no envio)
 │   ├── couponMatcher.js     # Regras de elegibilidade de cupom
 │   ├── export.js            # Exportação CSV/JSON
 │   └── constants.js         # Lojas e tipos de desconto
 └── components/
+    ├── Sidebar.jsx          # Menu lateral de navegação
+    ├── Login.jsx            # Tela de login (senha de administrador)
     ├── OfferForm.jsx        # Oferta + sugestão de cupom + gerenciador + preview
     ├── MessagePreview.jsx   # Preview + copiar
     ├── CouponManager.jsx    # CRUD de cupons
-    └── History.jsx          # Histórico + filtros + exportação
+    ├── History.jsx          # Histórico + filtros + exportação
+    └── Settings.jsx         # Configurações (dados locais, acesso, sobre)
 vite.config.js               # Vite + plugin que serve /api em desenvolvimento
 ```
 

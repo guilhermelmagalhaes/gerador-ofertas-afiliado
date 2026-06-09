@@ -1,4 +1,13 @@
-import { Lock, Database, Info, Trash2, FileJson, Send } from 'lucide-react'
+import {
+  Lock,
+  ShieldCheck,
+  Unlock,
+  Database,
+  Info,
+  Trash2,
+  FileJson,
+  Send,
+} from 'lucide-react'
 import { clearOffers, clearCoupons } from '../lib/db'
 import { baixarArquivo } from '../lib/export'
 
@@ -10,7 +19,7 @@ import { baixarArquivo } from '../lib/export'
 // automático), novas seções entram aqui.
 // =============================================================================
 
-export default function Settings({ offers, coupons, onDadosAlterados }) {
+export default function Settings({ offers, coupons, semSenha, onDadosAlterados }) {
   // Exporta TUDO (ofertas + cupons) num único arquivo JSON de backup.
   function exportarBackup() {
     const data = new Date().toISOString().slice(0, 10)
@@ -34,18 +43,37 @@ export default function Settings({ offers, coupons, onDadosAlterados }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      {/* ---------- Acesso (login — próxima etapa) ---------- */}
+      {/* ---------- Acesso (login por senha de administrador) ---------- */}
       <section className="card">
         <h3 className="mb-2 flex items-center gap-2 text-base font-semibold text-slate-800">
           <Lock className="h-5 w-5 text-marca-600" /> Acesso
         </h3>
-        <p className="text-sm text-slate-500">
-          O login por senha de administrador (só você acessa para gerar
-          mensagens e links) será adicionado na próxima etapa.
-        </p>
-        <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
-          🔒 Planejado: proteção por senha, sem necessidade de banco de dados.
-        </div>
+        {semSenha ? (
+          <>
+            <p className="text-sm text-slate-500">
+              O app está em <strong>modo aberto</strong>: qualquer pessoa com o
+              link consegue acessar.
+            </p>
+            <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">
+              <Unlock className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                Para exigir senha, defina a variável <code>APP_PASSWORD</code> na
+                Vercel (Settings → Environment Variables) e faça um Redeploy.
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-slate-500">
+              O acesso está protegido por senha de administrador. Use o botão
+              <strong> Sair </strong> no menu lateral para encerrar a sessão.
+            </p>
+            <div className="mt-3 flex items-start gap-2 rounded-lg bg-marca-50 p-3 text-xs text-marca-700">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>Protegido por senha · sessão válida por 30 dias.</span>
+            </div>
+          </>
+        )}
       </section>
 
       {/* ---------- Envio automático (próxima etapa) ---------- */}

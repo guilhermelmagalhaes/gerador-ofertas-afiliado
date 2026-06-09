@@ -24,6 +24,8 @@
 // Continua SEM banco em nuvem: a persistência segue 100% no IndexedDB.
 // =============================================================================
 
+import { sessaoValida } from './_auth.js'
+
 // Cache do token de app em memória (vive enquanto a função estiver "quente").
 let tokenCache = { token: null, exp: 0 }
 
@@ -117,6 +119,12 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
   if (req.method === 'OPTIONS') {
     return res.status(204).end()
+  }
+
+  // Protege o recurso: só quem tem sessão válida pode usar a busca do ML
+  // (evita que terceiros consumam suas credenciais do Mercado Livre).
+  if (!sessaoValida(req)) {
+    return res.status(401).json({ erro: 'NAO_AUTENTICADO' })
   }
 
   const url = (req.query?.url || '').toString()

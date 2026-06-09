@@ -83,6 +83,9 @@ export default function OfferForm({ coupons, onSaved, onCouponsChange }) {
       if (e.message === 'URL_INVALIDA') {
         motivo =
           'Não encontrei um ID MLB nessa URL. Use o link completo do produto (não o link curto meli.la).'
+      } else if (e.message === 'NAO_AUTENTICADO') {
+        motivo =
+          'Sua sessão expirou. Recarregue a página e faça login novamente.'
       } else if (e.semCredenciais) {
         motivo =
           'O backend está sem as credenciais do Mercado Livre (ML_CLIENT_ID/ML_CLIENT_SECRET). Configure-as na Vercel (veja o README) para ativar a busca automática. Por enquanto, preencha manualmente.'

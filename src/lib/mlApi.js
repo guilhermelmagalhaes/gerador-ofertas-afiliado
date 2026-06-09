@@ -34,7 +34,9 @@ export async function buscarProdutoMl(url) {
 
   let resp
   try {
-    resp = await fetch(`/api/ml-produto?url=${encodeURIComponent(url)}`)
+    resp = await fetch(`/api/ml-produto?url=${encodeURIComponent(url)}`, {
+      credentials: 'include', // envia o cookie de sessão
+    })
   } catch {
     // Rede caiu ou backend indisponível (ex.: rodando sem o servidor).
     throw new Error('FALHA_API_ML')
