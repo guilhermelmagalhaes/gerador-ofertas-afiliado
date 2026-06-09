@@ -441,7 +441,7 @@ export default function OfferForm({ coupons, onSaved, onCouponsChange }) {
           </div>
 
           {/* Preview da mensagem */}
-          <MessagePreview mensagem={mensagem} />
+          <MessagePreview mensagem={mensagem} urlImagem={form.urlImagem} />
         </div>
       </div>
 

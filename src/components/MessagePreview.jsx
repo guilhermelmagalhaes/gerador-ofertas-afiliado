@@ -7,7 +7,7 @@ import { Copy, Check } from 'lucide-react'
 // Mostra o texto EXATAMENTE como será colado no WhatsApp (com *, ~, `).
 // =============================================================================
 
-export default function MessagePreview({ mensagem }) {
+export default function MessagePreview({ mensagem, urlImagem }) {
   const [copiado, setCopiado] = useState(false)
 
   async function copiar() {
@@ -45,15 +45,28 @@ export default function MessagePreview({ mensagem }) {
       </div>
 
       {/* Balão estilo "mensagem de chat" para dar contexto visual. */}
-      <div className="rounded-xl bg-marca-50 p-4">
-        <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-slate-800">
+      <div className="overflow-hidden rounded-xl bg-marca-50">
+        {/* Imagem do produto (no WhatsApp ela vai como foto + a mensagem
+            abaixo como legenda). */}
+        {urlImagem && (
+          <img
+            src={urlImagem}
+            alt="Imagem do produto"
+            className="max-h-72 w-full bg-white object-contain"
+            onError={(e) => (e.currentTarget.style.display = 'none')}
+            onLoad={(e) => (e.currentTarget.style.display = 'block')}
+          />
+        )}
+        <pre className="whitespace-pre-wrap break-words p-4 font-mono text-sm leading-relaxed text-slate-800">
           {mensagem || 'Preencha os campos para ver o preview...'}
         </pre>
       </div>
 
       <p className="mt-2 text-xs text-slate-400">
-        Os símbolos <code>*</code> <code>~</code> <code>`</code> são a formatação
-        do WhatsApp (negrito, riscado e monospace).
+        No WhatsApp, envie a <strong>imagem</strong> (botão “Baixar”) com este
+        texto como <strong>legenda</strong>. Os símbolos <code>*</code>{' '}
+        <code>~</code> <code>`</code> são a formatação (negrito, riscado e
+        monospace).
       </p>
     </div>
   )
