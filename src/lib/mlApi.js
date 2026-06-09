@@ -36,6 +36,7 @@ export async function buscarProdutoMl(url) {
   try {
     resp = await fetch(`/api/ml-produto?url=${encodeURIComponent(url)}`, {
       credentials: 'include', // envia o cookie de sessão
+      cache: 'no-store', // sempre busca dados frescos (evita preço/cache antigo)
     })
   } catch {
     // Rede caiu ou backend indisponível (ex.: rodando sem o servidor).

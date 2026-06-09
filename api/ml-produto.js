@@ -209,8 +209,9 @@ export default async function handler(req, res) {
         }
       }
 
-      // Cache leve na borda da Vercel (5 min) para itens repetidos.
-      res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate')
+      // Sem cache: o preço do produto muda com o tempo e queremos sempre o
+      // valor atual (evita o navegador/CDN servir uma resposta antiga).
+      res.setHeader('Cache-Control', 'no-store')
       return res.status(200).json(resultado)
     } catch (erro) {
       ultimoErro = erro
